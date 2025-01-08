@@ -20,7 +20,6 @@ const player = {
 };
 
 // Basic level layout (0 = empty, 1 = ground)
-// 20 tiles wide, ~7 rows tall (adjust as needed)
 const levelData = [
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -31,15 +30,22 @@ const levelData = [
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
+// Coins array
+// Each coin has x, y, size, and a 'collected' flag
+let coins = [
+  { x: 200, y: 50, size: 16, collected: false },
+  { x: 400, y: 80, size: 16, collected: false },
+  { x: 550, y: 120, size: 16, collected: false }
+];
+
+// Track how many coins collected
+let coinCount = 0;
+let totalCoins = coins.length;
+
 // Keyboard input
 let keys = {};
-
-document.addEventListener("keydown", (e) => {
-  keys[e.code] = true;
-});
-document.addEventListener("keyup", (e) => {
-  keys[e.code] = false;
-});
+document.addEventListener("keydown", (e) => { keys[e.code] = true; });
+document.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
 function update() {
   // Horizontal movement
@@ -67,32 +73,34 @@ function update() {
   // Move player in y-direction
   player.y += player.vy;
   checkCollisionY();
+
+  // Check coin collisions
+  checkCoinCollision();
+
+  // Win condition if all coins collected
+  if (coinCount === totalCoins) {
+    document.getElementById("info").textContent = "YOU COLLECTED ALL COINS! YOU WIN!";
+  }
 }
 
 function checkCollisionX() {
-  // Player's tile boundaries
   const top = Math.floor(player.y / TILE_SIZE);
   const bottom = Math.floor((player.y + player.height - 1) / TILE_SIZE);
   const left = Math.floor(player.x / TILE_SIZE);
   const right = Math.floor((player.x + player.width - 1) / TILE_SIZE);
 
-  // If out of level bounds, just ignore for now
   if (top < 0 || bottom >= levelData.length) return;
 
-  // Check collisions horizontally
   if (player.vx > 0) {
-    // Right side
     if (right < levelData[0].length) {
       for (let row = top; row <= bottom; row++) {
         if (levelData[row][right] === 1) {
-          // Push player back
           player.x = right * TILE_SIZE - player.width;
           break;
         }
       }
     }
   } else if (player.vx < 0) {
-    // Left side
     if (left >= 0) {
       for (let row = top; row <= bottom; row++) {
         if (levelData[row][left] === 1) {
@@ -112,13 +120,11 @@ function checkCollisionY() {
 
   if (left < 0 || right >= levelData[0].length) return;
 
-  // Vertical collision
   if (player.vy > 0) {
     // Moving down
     if (bottom < levelData.length) {
       for (let col = left; col <= right; col++) {
         if (levelData[bottom][col] === 1) {
-          // Land on top
           player.y = bottom * TILE_SIZE - player.height;
           player.vy = 0;
           player.onGround = true;
@@ -132,11 +138,33 @@ function checkCollisionY() {
     if (top >= 0) {
       for (let col = left; col <= right; col++) {
         if (levelData[top][col] === 1) {
-          // Bump head
           player.y = (top + 1) * TILE_SIZE;
           player.vy = 0;
           return;
         }
+      }
+    }
+  }
+}
+
+function boardFull(tempBoard) {
+  return tempBoard.every(row => row.every(tile => tile !== null));
+}
+
+// Check collision with each coin
+function checkCoinCollision() {
+  for (let coin of coins) {
+    if (!coin.collected) {
+      // Simple bounding-box overlap
+      if (
+        player.x < coin.x + coin.size &&
+        player.x + player.width > coin.x &&
+        player.y < coin.y + coin.size &&
+        player.y + player.height > coin.y
+      ) {
+        coin.collected = true;
+        coinCount++;
+        document.getElementById("info").textContent = `Coins: ${coinCount}/${totalCoins}`;
       }
     }
   }
@@ -155,6 +183,14 @@ function draw() {
     }
   }
 
+  // Draw coins
+  ctx.fillStyle = "gold";
+  for (let coin of coins) {
+    if (!coin.collected) {
+      ctx.fillRect(coin.x, coin.y, coin.size, coin.size);
+    }
+  }
+
   // Draw player
   ctx.fillStyle = "yellow";
   ctx.fillRect(player.x, player.y, player.width, player.height);
@@ -166,4 +202,9 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+// Start
+document.getElementById("info").textContent = `Coins: ${coinCount}/${totalCoins}`;
 gameLoop();
+
+    
+
